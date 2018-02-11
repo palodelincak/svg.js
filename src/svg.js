@@ -78,11 +78,11 @@ SVG.adopt = function(node) {
   if (!node) return null
 
   // make sure a node isn't already adopted
-  if (node.instance) return node.instance
+  if (node.instance instanceof SVG.Element) return node.instance
 
   if(!(node instanceof window.SVGElement))
     return new SVG.HtmlNode(node)
-  
+
   // initialize variables
   var element
 

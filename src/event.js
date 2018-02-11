@@ -6,8 +6,8 @@
   , 'mouseover'
   , 'mouseout'
   , 'mousemove'
-  // , 'mouseenter' -> not supported by IE
-  // , 'mouseleave' -> not supported by IE
+  , 'mouseenter'
+  , 'mouseleave'
   , 'touchstart'
   , 'touchmove'
   , 'touchleave'
@@ -22,31 +22,32 @@
   }
 })
 
-// Initialize listeners stack
-SVG.listeners = []
-SVG.handlerMap = []
 SVG.listenerId = 0
 
 // Add event binder in the SVG namespace
 SVG.on = function(node, events, listener, binding, options) {
+  var l = listener.bind(binding || node)
+    , n = node instanceof SVG.Element ? node.node : node
+
+  // ensure instance object for nodes which are not adopted
+  n.instance = n.instance || {events:{}}
+
+  var bag = n.instance.events
+
+  // ensure valid object
+  bag[ev]     = bag[ev]     || {}
+  bag[ev][ns] = bag[ev][ns] || {}
+
+  // add id to listener
+  if(!listener._svgjsListenerId)
+    listener._svgjsListenerId = ++SVG.listenerId
+
   events.split(SVG.regex.delimiter).forEach(function(event) {
-    // create listener, get object-index
-    var l     = listener.bind(binding || node)
-      , n     = node instanceof SVG.Element ? node.node : node
-      , index = (SVG.handlerMap.indexOf(n) + 1 || SVG.handlerMap.push(n)) - 1
-      , ev    = event.split('.')[0]
-      , ns    = event.split('.')[1] || '*'
-
-    // ensure valid object
-    SVG.listeners[index]         = SVG.listeners[index]         || {}
-    SVG.listeners[index][ev]     = SVG.listeners[index][ev]     || {}
-    SVG.listeners[index][ev][ns] = SVG.listeners[index][ev][ns] || {}
-
-    if(!listener._svgjsListenerId)
-      listener._svgjsListenerId = ++SVG.listenerId
+    var ev = event.split('.')[0]
+      , ns = event.split('.')[1] || '*'
 
     // reference listener
-    SVG.listeners[index][ev][ns][listener._svgjsListenerId] = l
+    bag[ev][ns][listener._svgjsListenerId] = l
 
     // add listener
     n.addEventListener(ev, l, options || false)
@@ -54,66 +55,64 @@ SVG.on = function(node, events, listener, binding, options) {
 }
 
 // Add event unbinder in the SVG namespace
-SVG.off = function(node, event, listener) {
-  var index = SVG.handlerMap.indexOf(node)
-    , ev    = event && event.split('.')[0]
-    , ns    = event && event.split('.')[1]
-    , namespace = ''
+SVG.off = function(node, events, listener, options) {
+  var n = node instanceof SVG.Element ? node.node : node
+  if(!n.instance) return
 
-  if(index == -1) return
-
+  // make a precheck for a valid listener here to avoid repetition in the loop
   if (listener) {
     if(typeof listener == 'function') listener = listener._svgjsListenerId
     if(!listener) return
-
-    // remove listener reference
-    if (SVG.listeners[index][ev] && SVG.listeners[index][ev][ns || '*']) {
-      // remove listener
-      node.removeEventListener(ev, SVG.listeners[index][ev][ns || '*'][listener], false)
-
-      delete SVG.listeners[index][ev][ns || '*'][listener]
-    }
-
-  } else if (ns && ev) {
-    // remove all listeners for a namespaced event
-    if (SVG.listeners[index][ev] && SVG.listeners[index][ev][ns]) {
-      for (listener in SVG.listeners[index][ev][ns])
-        SVG.off(node, [ev, ns].join('.'), listener)
-
-      delete SVG.listeners[index][ev][ns]
-    }
-
-  } else if (ns){
-    // remove all listeners for a specific namespace
-    for(event in SVG.listeners[index]){
-        for(namespace in SVG.listeners[index][event]){
-            if(ns === namespace){
-                SVG.off(node, [event, ns].join('.'))
-            }
-        }
-    }
-
-  } else if (ev) {
-    // remove all listeners for the event
-    if (SVG.listeners[index][ev]) {
-      for (namespace in SVG.listeners[index][ev])
-        SVG.off(node, [ev, namespace].join('.'))
-
-      delete SVG.listeners[index][ev]
-    }
-
-  } else {
-    // remove all listeners on a given node
-    for (event in SVG.listeners[index])
-      SVG.off(node, event)
-
-    delete SVG.listeners[index]
-    delete SVG.handlerMap[index]
-
   }
+
+  var bag = n.instance.events
+
+  ;(events || '').split(SVG.regex.delimiter).forEach(function(event) {
+    var ev = event && event.split('.')[0]
+      , ns = event && event.split('.')[1]
+      , namespace
+
+    if (listener) {
+      // remove listener reference
+      if (bag[ev] && bag[ev][ns || '*']) {
+        // remove listener
+        n.removeEventListener(ev, bag[ev][ns || '*'][listener], options || false)
+
+        delete bag[ev][ns || '*'][listener]
+      }
+    } else if (ev && ns) {
+      // remove all listeners for a namespaced event
+      if (bag[ev] && bag[ev][ns]) {
+        for (listener in bag[ev][ns])
+          SVG.off(n, [ev, ns].join('.'), listener)
+
+        delete bag[ev][ns]
+      }
+    } else if (ns){
+      // remove all listeners for a specific namespace
+      for(event in bag)
+        for(namespace in bag[event])
+          if(ns === namespace)
+            SVG.off(n, [event, ns].join('.'))
+    } else if (ev) {
+      // remove all listeners for the event
+      if (bag[ev]) {
+        for (namespace in bag[ev])
+          SVG.off(n, [ev, namespace].join('.'))
+
+        delete bag[ev]
+      }
+    } else {
+      // remove all listeners on a given node
+      for (event in bag)
+        SVG.off(n, event)
+
+      n.instance.events = {}
+    }
+  })
 }
 
-//
+
 SVG.extend(SVG.Element, {
   // Bind given event to listener
   on: function(event, listener, binding, options) {
@@ -127,20 +126,18 @@ SVG.extend(SVG.Element, {
 
     return this
   }
-  // Fire given event
-, fire: function(event, data) {
-
+, dispatch: function(event, data) {
     // Dispatch event
     if(event instanceof window.Event){
-        this.node.dispatchEvent(event)
+      this.node.dispatchEvent(event)
     }else{
-        this.node.dispatchEvent(event = new window.CustomEvent(event, {detail:data, cancelable: true}))
+      this.node.dispatchEvent(event = new window.CustomEvent(event, {detail:data, cancelable: true}))
     }
-
-    this._event = event
-    return this
+    return event
   }
-, event: function() {
-    return this._event
+  // Fire given event
+, fire: function(event, data) {
+    this.dispatch(event, data)
+    return this
   }
 })
