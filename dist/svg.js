@@ -6,7 +6,7 @@
 * @copyright Wout Fierens <wout@mick-wout.com>
 * @license MIT
 *
-* BUILT: Wed Feb 07 2018 22:59:25 GMT+0100 (Mitteleuropäische Zeit)
+* BUILT: Thu Feb 15 2018 12:48:11 GMT+0100 (CET)
 */;
 (function(root, factory) {
   /* istanbul ignore next */
@@ -38,6 +38,7 @@ SVG.ns    = 'http://www.w3.org/2000/svg'
 SVG.xmlns = 'http://www.w3.org/2000/xmlns/'
 SVG.xlink = 'http://www.w3.org/1999/xlink'
 SVG.svgjs = 'http://svgjs.com/svgjs'
+SVG.eidLabel = 'Svgjs'
 
 // Svg support test
 SVG.supported = (function() {
@@ -53,7 +54,7 @@ SVG.did  = 1000
 
 // Get next named element id
 SVG.eid = function(name) {
-  return 'Svgjs' + capitalize(name) + (SVG.did++)
+  return SVG.eidLabel + capitalize(name) + (SVG.did++)
 }
 
 // Method for element creation
@@ -1234,7 +1235,7 @@ SVG.Element = SVG.invent({
       // act as a setter if svg is given
       if (svg && this instanceof SVG.Parent) {
         // dump raw svg
-        well.innerHTML = '<svg>' + svg.replace(/\n/, '').replace(/<(\w+)([^<]+?)\/>/g, '<$1$2></$1>') + '</svg>'
+        well.innerHTML = '<svg>' + svg.replace(/\n/, '').replace(/<([\w:-]+)([^<]+?)\/>/g, '<$1$2></$1>') + '</svg>'
 
         // transplant nodes
         for (var i = 0, il = well.firstChild.childNodes.length; i < il; i++)
@@ -5553,4 +5554,4 @@ if (typeof window.CustomEvent !== 'function') {
 
 return SVG
 
-}));
+}));

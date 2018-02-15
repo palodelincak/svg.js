@@ -2,10 +2,10 @@
 var SVG = this.SVG = function(element) {
   if (SVG.supported) {
     element = new SVG.Doc(element)
-    
+
     if(!SVG.parser.draw)
       SVG.prepare()
-      
+
     return element
   }
 }
@@ -15,6 +15,7 @@ SVG.ns    = 'http://www.w3.org/2000/svg'
 SVG.xmlns = 'http://www.w3.org/2000/xmlns/'
 SVG.xlink = 'http://www.w3.org/1999/xlink'
 SVG.svgjs = 'http://svgjs.com/svgjs'
+SVG.eidLabel = 'Svgjs'
 
 // Svg support test
 SVG.supported = (function() {
@@ -30,7 +31,7 @@ SVG.did  = 1000
 
 // Get next named element id
 SVG.eid = function(name) {
-  return 'Svgjs' + capitalize(name) + (SVG.did++)
+  return SVG.eidLabel + capitalize(name) + (SVG.did++)
 }
 
 // Method for element creation
